@@ -1,0 +1,401 @@
+C51 COMPILER V9.56.0.0   SHIER_2                                                           03/24/2022 11:04:38 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE SHIER_2
+OBJECT MODULE PLACED IN .\Objects\shier_2.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE shier_2.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\s
+                    -hier_2.lst) TABS(2) OBJECT(.\Objects\shier_2.obj)
+
+line level    source
+
+   1          #include<reg51.h>
+   2          #include<iic.c>
+   3          #include<intrins.h>
+   4          sbit R1=P3^0;//??????(????????,????????????,??????)
+   5          sbit R2=P3^1;//??????
+   6          sbit R3=P3^2;//??????
+   7          sbit R4=P3^3;//??????
+   8          
+   9          
+  10          
+  11          unsigned int count_f = 0;
+  12          unsigned char count_t = 0;
+  13          unsigned int dat_f = 0;
+  14          unsigned int dat_term = 0;
+  15          uchar S4_mode=9;
+  16          uchar S5_mode=4;
+  17          uchar i=0;
+  18          uchar j=0;
+  19          int voltage_rd1;
+  20          int dat_rd1;
+  21          int voltage_rb2;
+  22          int dat_rb2;
+  23          int voltage[];
+  24          int fre[];
+  25          void led_0();
+  26          
+  27          void Scan_S4();
+  28          void Scan_S5();
+  29          void Init()
+  30          {
+  31   1        R1=R2=R3=R4=1;
+  32   1      }
+  33          
+  34          
+  35          void Init_Timer()
+  36          {
+  37   1        TH0 = 0xff;        
+  38   1        TL0 = 0xff;
+  39   1        
+  40   1        TH1 = (65536 - 50000) / 256;        
+  41   1        TL1 = (65536 - 50000) % 256;
+  42   1        TMOD = 0x16;     
+  43   1          ET0 = 1;
+  44   1          ET1 = 1;
+  45   1        EA = 1;
+  46   1        TR0 = 1;
+  47   1        TR1 = 1;
+  48   1      }
+  49           
+  50          void Service_T0() interrupt 1
+  51          {
+  52   1        count_f++;
+  53   1      }
+  54           
+C51 COMPILER V9.56.0.0   SHIER_2                                                           03/24/2022 11:04:38 PAGE 2   
+
+  55          void Service_T1() interrupt 3
+  56          {
+  57   1        TH1 = (65536 - 50000) / 256;        
+  58   1        TL1 = (65536 - 50000) % 256;
+  59   1        count_t++;
+  60   1        if(count_t == 20)
+  61   1        {
+  62   2          dat_f = count_f;
+  63   2          count_f = 0;
+  64   2          count_t = 0;
+  65   2        }
+  66   1      }
+  67          void write_eeprom(unsigned char add,unsigned char date)//??eeprom??,?????,?????
+  68          {
+  69   1        IIC_Start();
+  70   1        IIC_SendByte(0xa0);
+  71   1        IIC_WaitAck();
+  72   1        IIC_SendByte(add);
+  73   1        IIC_WaitAck();
+  74   1        IIC_SendByte(date);
+  75   1        IIC_WaitAck();
+  76   1        IIC_Stop();
+  77   1      }
+  78          unsigned char read_eeprom(unsigned char add)//?eeprom???,???????
+  79          {
+  80   1        unsigned char temp;
+  81   1        EA = 0;
+  82   1        IIC_Start();
+  83   1        IIC_SendByte(0xa0);
+  84   1        IIC_WaitAck();
+  85   1        IIC_SendByte(add);
+  86   1        IIC_WaitAck();
+  87   1      
+  88   1        IIC_Start();
+  89   1        IIC_SendByte(0xa1);
+  90   1        IIC_WaitAck();
+  91   1        temp = IIC_RecByte();
+  92   1        IIC_SendAck(1);
+  93   1        IIC_WaitAck();
+  94   1        IIC_Stop();
+  95   1        EA = 1;
+  96   1        return temp;
+  97   1      }
+  98          
+  99          void display_f()
+ 100          {
+ 101   1        ledlight(2);
+ 102   1        shumaguan_zimu(0,5);
+ 103   1        if(dat_f>9999)
+ 104   1          shumaguan_shuzi(3,dat_f/1000);
+ 105   1        if(dat_f>999)
+ 106   1          shumaguan_shuzi(4,dat_f/1000%10);
+ 107   1        if(dat_f>99)
+ 108   1          shumaguan_shuzi(5,dat_f/100%10);
+ 109   1        if(dat_f>9)
+ 110   1          shumaguan_shuzi(6,dat_f/10%10);
+ 111   1          
+ 112   1          shumaguan_shuzi(7,dat_f%10);
+ 113   1        
+ 114   1      }
+ 115          void display_term()
+ 116          {
+C51 COMPILER V9.56.0.0   SHIER_2                                                           03/24/2022 11:04:38 PAGE 3   
+
+ 117   1        ledlight(3);
+ 118   1        shumaguan_zimu(0,10);
+ 119   1        dat_term=1000000/dat_f;
+ 120   1        if(dat_f>9999)
+ 121   1          shumaguan_shuzi(3,dat_term/1000);
+ 122   1        if(dat_f>999)
+ 123   1          shumaguan_shuzi(4,dat_term/1000%10);
+ 124   1        if(dat_f>99)
+ 125   1          shumaguan_shuzi(5,dat_term/100%10);
+ 126   1        if(dat_f>9)
+ 127   1          shumaguan_shuzi(6,dat_term/10%10);
+ 128   1          
+ 129   1          shumaguan_shuzi(7,dat_term%10);
+ 130   1      }
+ 131          void display_RD1()
+ 132          {
+ 133   1        ledlight(4);
+ 134   1        IIC_Start();            
+ 135   1        IIC_SendByte(0x90);   
+ 136   1        IIC_WaitAck();    
+ 137   1        IIC_SendByte(0x01);
+ 138   1        IIC_WaitAck();              
+ 139   1        IIC_Stop();             
+ 140   1        
+ 141   1        IIC_Start();                      
+ 142   1        IIC_SendByte(0x91);       
+ 143   1        IIC_WaitAck();        
+ 144   1        dat_rd1 = IIC_RecByte();        
+ 145   1        IIC_WaitAck();            
+ 146   1        IIC_Stop();             
+ 147   1      
+ 148   1        
+ 149   1        voltage_rd1=dat_rd1*100/51;
+ 150   1        shumaguan_zimu(0,9);
+ 151   1        shumaguan_shuzi(1,10);
+ 152   1        shumaguan_shuzi(2,1);
+ 153   1        shumaguan_shuzi(6,voltage_rd1%100/10);
+ 154   1        shumaguan_shuzi(7,voltage_rd1%10);
+ 155   1        P2=(P2&0X1f)|0xC0;P0=weizhi[5];
+ 156   1        P2=(P2&0X1f)|0xFF;P0=shuzi[voltage_rd1/100]+0x80;
+ 157   1      }
+ 158          void display_Rb2()
+ 159          {
+ 160   1        if(voltage_rb2>voltage[0])
+ 161   1        {
+ 162   2        P2=(P2&0X1f)|0x80;
+ 163   2        P0=0xee;
+ 164   2        }
+ 165   1        else ledlight(4);
+ 166   1        IIC_Start();            
+ 167   1        IIC_SendByte(0x90);   
+ 168   1        IIC_WaitAck();    
+ 169   1        IIC_SendByte(0x03);
+ 170   1        IIC_WaitAck();              
+ 171   1        IIC_Stop();             
+ 172   1        
+ 173   1        IIC_Start();                      
+ 174   1        IIC_SendByte(0x91);       
+ 175   1        IIC_WaitAck();        
+ 176   1        dat_rb2 = IIC_RecByte();        
+ 177   1        IIC_WaitAck();            
+ 178   1        IIC_Stop();             
+C51 COMPILER V9.56.0.0   SHIER_2                                                           03/24/2022 11:04:38 PAGE 4   
+
+ 179   1      
+ 180   1        
+ 181   1        voltage_rb2=dat_rb2*100/51;
+ 182   1        shumaguan_zimu(0,9);
+ 183   1        shumaguan_shuzi(1,10);
+ 184   1        shumaguan_shuzi(2,3);
+ 185   1        shumaguan_shuzi(6,voltage_rb2%100/10);
+ 186   1        shumaguan_shuzi(7,voltage_rb2%10);
+ 187   1        P2=(P2&0X1f)|0xC0;P0=weizhi[5];
+ 188   1        P2=(P2&0X1f)|0xFF;P0=shuzi[voltage_rb2/100]+0x80;
+ 189   1      }
+ 190          void Scan_S4()
+ 191          {
+ 192   1        if(R4==0)
+ 193   1        {
+ 194   2          delay_ms(60);
+ 195   2          if(R4==0)
+ 196   2          {
+ 197   3            
+ 198   3            while(1)
+ 199   3            {
+ 200   4                
+ 201   4              display_term();
+ 202   4            
+ 203   4              if(R4==0)
+ 204   4              {
+ 205   5                delay_ms(60);
+ 206   5                if(R4==0)
+ 207   5                {
+ 208   6                  
+ 209   6                  while(1)
+ 210   6                  {
+ 211   7                  
+ 212   7                    display_RD1();
+ 213   7                    Scan_S5();
+ 214   7                    
+ 215   7                    if(R4==0) 
+ 216   7                    {
+ 217   8                      delay_ms(60);
+ 218   8                      if(R4==0)
+ 219   8                      {
+ 220   9                      
+ 221   9                        while(1)
+ 222   9                        {
+ 223  10                          display_f();
+ 224  10                        
+ 225  10                          if(R4==0)
+ 226  10                          {
+ 227  11                            delay_ms(60);
+ 228  11                            if(R4==0)
+ 229  11                            {
+ 230  12                              
+ 231  12                              while(1)
+ 232  12                              {
+ 233  13                                Scan_S4();
+ 234  13                              }
+ 235  12                            }
+ 236  11                          }
+ 237  10                          while(R4==0);
+ 238  10                        }
+ 239   9                        while(R4==0);
+ 240   9                      }
+C51 COMPILER V9.56.0.0   SHIER_2                                                           03/24/2022 11:04:38 PAGE 5   
+
+ 241   8                    }
+ 242   7                    while(R4==0);
+ 243   7                  }
+ 244   6                  
+ 245   6                  while(R4==0);
+ 246   6                }
+ 247   5              }
+ 248   4              while(R4==0);
+ 249   4            }
+ 250   3            while(R4==0);
+ 251   3          }
+ 252   2        }
+ 253   1      }
+ 254          void Scan_S5()
+ 255          {
+ 256   1        
+ 257   1        
+ 258   1        if(R3==0)
+ 259   1        {
+ 260   2          delay_ms(10);
+ 261   2        if(R3==0)
+ 262   2        {
+ 263   3          S5_mode++;
+ 264   3          while(R3==0);
+ 265   3        }
+ 266   2        }
+ 267   1        if(S5_mode%2==0)
+ 268   1        {
+ 269   2          display_RD1();
+ 270   2        }
+ 271   1        if(S5_mode%2==1)
+ 272   1        {
+ 273   2          while(1)
+ 274   2          {
+ 275   3            display_Rb2();
+ 276   3            if(R3==0)
+ 277   3            {
+ 278   4              delay_ms(10);
+ 279   4              if(R3==0)
+ 280   4              {
+ 281   5                break;
+ 282   5                while(R3==0);
+ 283   5              }
+ 284   4            }
+ 285   3          }
+ 286   2        }
+ 287   1      }
+ 288          void Scan_S6()
+ 289          {
+ 290   1        
+ 291   1        if(R2==0)
+ 292   1        {
+ 293   2          delay_ms(50);
+ 294   2          if(R2==0)
+ 295   2          {
+ 296   3            voltage[i]=voltage_rb2;
+ 297   3            i++;
+ 298   3            dat_f=fre[j++];
+ 299   3            while(R2==0);
+ 300   3          }
+ 301   2      }
+ 302   1      }
+C51 COMPILER V9.56.0.0   SHIER_2                                                           03/24/2022 11:04:38 PAGE 6   
+
+ 303          void Scan_S7()
+ 304          {
+ 305   1        int count=0;
+ 306   1        if(R1==0)
+ 307   1        {
+ 308   2          delay_ms(50);
+ 309   2          if(R1==0)
+ 310   2          {
+ 311   3            write_eeprom(0x03,dat_f);
+ 312   3          }
+ 313   2        }
+ 314   1        if(R1==0)
+ 315   1        {
+ 316   2          count++;
+ 317   2          if(count>500)
+ 318   2          {
+ 319   3            ledlight(8);
+ 320   3          
+ 321   3            if(R1==0)
+ 322   3            {
+ 323   4              count++;
+ 324   4              if(count>1000)
+ 325   4              {
+ 326   5                
+ 327   5                count=0;
+ 328   5              }
+ 329   4            }
+ 330   3          }
+ 331   2        }
+ 332   1      }
+ 333          void led_0()
+ 334          {
+ 335   1        int voltage_c;
+ 336   1        voltage_c=read_eeprom(0x02);
+ 337   1        if(voltage_rb2>voltage_c)
+ 338   1        {
+ 339   2        
+ 340   2          
+ 341   2            P2=(P2&0X1f)|0x80;
+ 342   2            P0=0xee;
+ 343   2          
+ 344   2        }
+ 345   1        else ledlight(4);
+ 346   1      }
+ 347          void led_1()
+ 348          {
+ 349   1        int dat_f_c;
+ 350   1        dat_f_c=read_eeprom(0x03);
+ 351   1        if(dat_f>dat_f_c) ledlight(1);
+ 352   1      }
+ 353          void main()
+ 354          {
+ 355   1        allinit();
+ 356   1        Init_Timer();
+ 357   1        while(1)
+ 358   1        {
+ 359   2          Scan_S7();
+ 360   2          Scan_S6();
+ 361   2          Scan_S4();
+ 362   2          display_f();
+ 363   2        
+ 364   2        }
+C51 COMPILER V9.56.0.0   SHIER_2                                                           03/24/2022 11:04:38 PAGE 7   
+
+ 365   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1745    ----
+   CONSTANT SIZE    =     60    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     28       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       2
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
